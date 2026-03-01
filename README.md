@@ -197,6 +197,3 @@ Product and company names may be trademarks of their respective owners. Their us
 
 ---
 
-## License
-
-MIT (or your choice).
