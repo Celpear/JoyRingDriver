@@ -448,10 +448,67 @@ let calibration = { rightVector: null, centerVector: null, leftVector: null }; /
 
             // —— Sound (Web Audio API, no external files) ——
             let audioCtx = null;
+            let bgMusicGain = null;
+            let bgMusicTimeoutId = null;
+            const BGM_VOLUME = 0.22;
+            const BGM_LOOP_SEC = 8;
+            const BPM = 118;
+            const BEAT_SEC = 60 / BPM;
             function getAudioContext() {
                 if (audioCtx) return audioCtx;
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 return audioCtx;
+            }
+            function startBackgroundMusic() {
+                const ctx = getAudioContext();
+                if (!bgMusicGain) {
+                    bgMusicGain = ctx.createGain();
+                    bgMusicGain.connect(ctx.destination);
+                }
+                bgMusicGain.gain.cancelScheduledValues(ctx.currentTime);
+                bgMusicGain.gain.setValueAtTime(BGM_VOLUME, ctx.currentTime);
+                const t0 = ctx.currentTime;
+                const bassFreqs = [55, 55, 62, 55, 65, 62, 55, 62];
+                const padFreqs = [220, 277, 329];
+                const bassBeats = 32;
+                for (let i = 0; i < bassBeats; i++) {
+                    const t = t0 + i * (BGM_LOOP_SEC / bassBeats);
+                    const osc = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    osc.type = "sine";
+                    osc.frequency.setValueAtTime(bassFreqs[i % 8], t);
+                    g.gain.setValueAtTime(0, t);
+                    g.gain.linearRampToValueAtTime(0.4, t + 0.02);
+                    g.gain.exponentialRampToValueAtTime(0.01, t + 0.18);
+                    osc.connect(g);
+                    g.connect(bgMusicGain);
+                    osc.start(t);
+                    osc.stop(t + 0.2);
+                }
+                const padStart = t0;
+                padFreqs.forEach((f, i) => {
+                    const osc = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    osc.type = "sine";
+                    osc.frequency.setValueAtTime(f, padStart);
+                    g.gain.setValueAtTime(0, padStart);
+                    g.gain.linearRampToValueAtTime(0.06, padStart + 0.5);
+                    g.gain.setValueAtTime(0.06, padStart + BGM_LOOP_SEC - 0.3);
+                    g.gain.linearRampToValueAtTime(0, padStart + BGM_LOOP_SEC);
+                    osc.connect(g);
+                    g.connect(bgMusicGain);
+                    osc.start(padStart);
+                    osc.stop(padStart + BGM_LOOP_SEC);
+                });
+                bgMusicTimeoutId = setTimeout(startBackgroundMusic, BGM_LOOP_SEC * 1000);
+            }
+            function stopBackgroundMusic() {
+                if (bgMusicTimeoutId) clearTimeout(bgMusicTimeoutId);
+                bgMusicTimeoutId = null;
+                if (bgMusicGain && audioCtx) {
+                    bgMusicGain.gain.cancelScheduledValues(audioCtx.currentTime);
+                    bgMusicGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+                }
             }
             function playHit() {
                 try {
@@ -800,6 +857,7 @@ let calibration = { rightVector: null, centerVector: null, leftVector: null }; /
                         cubes.splice(i, 1);
                         if (lives <= 0) {
                             gameState = GAME_STATES.GAMEOVER;
+                            stopBackgroundMusic();
                             const best = Math.max(score, parseInt(localStorage.getItem("cubeSaberBest") || "0", 10));
                             localStorage.setItem("cubeSaberBest", String(best));
                             document.getElementById("finalScore").textContent = score;
@@ -915,6 +973,7 @@ menuStatus.textContent = "Connecting… Select your controller in the dialog.";
                     if (step >= steps.length) {
                         overlay.classList.remove("visible");
                         gameState = GAME_STATES.PLAYING;
+                        startBackgroundMusic();
                         return;
                     }
                     numEl.textContent = steps[step];
