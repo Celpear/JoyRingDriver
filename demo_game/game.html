@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cube Saber</title>
+    <style>
+        * {
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            background: #0a0a0f;
+            color: #fff;
+        }
+
+        #canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #ui {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #ui>* {
+            pointer-events: auto;
+        }
+
+        #ringWrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #ringLabel {
+            font-size: 12px;
+            color: #8af;
+            min-width: 36px;
+        }
+
+        #ringBarWrap {
+            width: 80px;
+            height: 14px;
+            background: #222;
+            border-radius: 999px;
+            overflow: hidden;
+            border: 1px solid #444;
+        }
+
+        #ringBarFill {
+            height: 100%;
+            width: 50%;
+            background: linear-gradient(90deg, #2a6, #4cf);
+            border-radius: 999px;
+            transition: width 0.05s ease-out;
+        }
+
+        #ringVal {
+            font-size: 12px;
+            color: #aaa;
+            font-variant-numeric: tabular-nums;
+            min-width: 44px;
+            text-align: right;
+        }
+
+        #orientationWrap {
+            position: fixed;
+            left: 50%;
+            bottom: 18%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        #orientationWrap span {
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            background: #222;
+            color: #555;
+            border: 2px solid #333;
+            transition: all 0.1s ease;
+        }
+
+        #orientationWrap span.active {
+            background: #2a4a6a;
+            color: #aaf;
+            border-color: #4af;
+            box-shadow: 0 0 12px rgba(68, 136, 255, 0.5);
+        }
+
+        #scoreWrap {
+            text-align: right;
+        }
+
+        #score {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        #combo {
+            font-size: 14px;
+            color: #8af;
+            margin-top: 2px;
+        }
+
+        #menu {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            z-index: 20;
+        }
+
+        #menu.hidden {
+            display: none;
+        }
+
+        #menu h1 {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        #menu p {
+            color: #aaa;
+            font-size: 14px;
+            max-width: 380px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        #menu code,
+        #menu kbd {
+            font-size: 12px;
+            background: #222;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .btn {
+            border: 0;
+            padding: 14px 28px;
+            font-size: 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            background: #3a7bd5;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            background: #4a8be5;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #menuStatus {
+            font-size: 14px;
+            color: #aaa;
+            min-height: 1.5em;
+        }
+
+        #calibScreen {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            z-index: 25;
+        }
+
+        #calibScreen.visible {
+            display: flex;
+        }
+
+        #calibScreen h2 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        #calibScreen .calibStepDesc {
+            font-size: 18px;
+            color: #ccc;
+            margin-bottom: 12px;
+        }
+
+        #calibCurrentVal {
+            font-family: ui-monospace, monospace;
+            font-size: 20px;
+            color: #8af;
+            margin: 12px 0;
+        }
+
+        #calibScreen .btn {
+            margin-top: 8px;
+        }
+
+        #calibProgress {
+            font-size: 13px;
+            color: #666;
+        }
+
+        #hitZone {
+            position: fixed;
+            left: 50%;
+            bottom: 25%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 80px;
+            border: 2px solid rgba(100, 200, 255, 0.5);
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 5;
+            animation: hitZonePulse 1.2s ease-in-out infinite;
+        }
+        @keyframes hitZonePulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(100, 200, 255, 0.3); }
+            50% { box-shadow: 0 0 20px 4px rgba(100, 200, 255, 0.2); }
+        }
+
+        #livesWrap {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 18px;
+        }
+        #livesWrap .heart { color: #e06060; }
+        #livesWrap .heart.lost { color: #333; opacity: 0.6; }
+        #stealthCalibHint {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 16px;
+            background: rgba(0,80,40,0.9);
+            border-radius: 8px;
+            font-size: 13px;
+            z-index: 15;
+            display: none;
+        }
+        #stealthCalibHint.visible { display: block; }
+
+        #countdownOverlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 30;
+            background: rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        #countdownOverlay.visible { display: flex; }
+        #countdownOverlay span {
+            font-size: 120px;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 0 40px rgba(100,180,255,0.8);
+            animation: countdownPop 0.5s ease-out;
+        }
+        @keyframes countdownPop {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.15); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        #gameOverOverlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            z-index: 30;
+            background: rgba(0,0,0,0.9);
+        }
+        #gameOverOverlay.visible { display: flex; }
+        #gameOverOverlay h2 { font-size: 36px; color: #fff; }
+        #gameOverOverlay .finalScore { font-size: 48px; font-weight: 800; color: #8af; }
+        #gameOverOverlay .bestScore { font-size: 18px; color: #6a6; }
+        #gameOverOverlay .btn { font-size: 18px; padding: 16px 32px; }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="hitZone" title="Hit zone"></div>
+    <div id="orientationWrap">
+        <span id="orientL">L</span>
+        <span id="orientC">C</span>
+        <span id="orientR">R</span>
+    </div>
+    <div id="ui">
+        <div id="ringWrap">
+            <span id="ringLabel">Ring</span>
+            <div id="ringBarWrap">
+                <div id="ringBarFill"></div>
+            </div>
+            <span id="ringVal">—</span>
+        </div>
+        <div id="scoreWrap">
+            <div id="livesWrap" title="Lives" style="margin-bottom:4px;"><span id="heart1" class="heart">♥</span><span id="heart2" class="heart">♥</span><span id="heart3" class="heart">♥</span></div>
+            <div id="score">0</div>
+            <div id="combo"></div>
+        </div>
+    </div>
+    <div id="stealthCalibHint"></div>
+    <div id="countdownOverlay"><span id="countdownNum"></span></div>
+    <div id="gameOverOverlay">
+        <h2>Game Over</h2>
+        <div class="finalScore">Score: <span id="finalScore">0</span></div>
+        <div class="bestScore">Best: <span id="bestScore">0</span></div>
+        <p style="font-size:14px; color:#888;">Red = squeeze ring. Blue = pull ring. Match lane (L/C/R).</p>
+        <button id="btnRestart" class="btn">Play Again</button>
+    </div>
+    <div id="menu">
+        <h1>Cube Saber</h1>
+        <p><strong>Red</strong> = squeeze the ring (push). <strong>Blue</strong> = pull the ring apart. Turn the ring
+            left/center/right (L/C/R) to match cube lane. Open from project root. Keys: <kbd>A</kbd>/<kbd>D</kbd> =
+            pull/push.</p>
+        <button id="btnConnect" class="btn">Connect controller</button>
+        <div id="menuStatus">Click Connect, then choose your controller in the browser dialog.</div>
+        <button id="btnStart" class="btn" disabled>Start Game</button>
+    </div>
+
+    <div id="calibScreen">
+        <h2>Lanes: Left / Center / Right</h2>
+        <p class="calibStepDesc" id="calibStepDesc">We record an IMU direction vector (accel x,y,z) for each position. In game, the closest vector (cosine similarity) = L, C or R.</p>
+        <div id="calibCurrentVal">—</div>
+        <div id="calibProgress">Step 1 of 3</div>
+        <button id="calibNext" class="btn">Next</button>
+        <p style="margin-top:20px; font-size:13px; color:#888;">— or skip manual calibration —</p>
+        <button id="calibStealth" class="btn" style="background:#3a5a3a;">Stealth: learn from movement</button>
+        <p style="font-size:12px; color:#666;">Play with stick for 15s; tilt is learned in the background, then used for L/C/R.</p>
+        <button id="calibUseStick" class="btn" style="background:#2a4a2a;">Always use R-Stick for lanes</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="../driver.js"></script>
+    <script>
+        (function () {
+            const canvas = document.getElementById("canvas");
+            const btnConnect = document.getElementById("btnConnect");
+            const btnStart = document.getElementById("btnStart");
+            const menu = document.getElementById("menu");
+            const menuStatus = document.getElementById("menuStatus");
+            const scoreEl = document.getElementById("score");
+            const comboEl = document.getElementById("combo");
+            const ringBarFill = document.getElementById("ringBarFill");
+            const ringVal = document.getElementById("ringVal");
+
+            // —— Three.js ——
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a12);
+            const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+            camera.position.set(0, 0, 0);
+            camera.lookAt(0, 0, -1);
+            const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            function resize() {
+                const w = window.innerWidth, h = window.innerHeight;
+                renderer.setSize(w, h);
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+            }
+            window.addEventListener("resize", resize);
+            resize();
+
+            // —— Game state ——
+            const GAME_STATES = { MENU: "menu", CALIB: "calib", COUNTDOWN: "countdown", PLAYING: "playing", GAMEOVER: "gameover" };
+            let gameState = GAME_STATES.MENU;
+            const LIVES_MAX = 3;
+            let lives = LIVES_MAX;
+            const SPAWN_Z = -40;
+            const HIT_Z_MIN = -3.5;
+            const HIT_Z_MAX = 2;
+            const SPEED_BASE = 5;
+            const SPEED_MAX = 12;
+            const SPEED_RAMP_EVERY_HITS = 15;
+            let currentSpeed = SPEED_BASE;
+            let hitsThisGame = 0;
+            const SLASH_COOLDOWN_MS = 320;
+            const SLASH_VALID_MS = 220;
+            const GYRO_SLASH_THRESHOLD = 1800;
+            const ACCEL_SLASH_THRESHOLD = 2200;
+            const LANES = [-1.4, 0, 1.4];
+            const RING_DELTA_RANGE = 1500;
+            const PUSH_THRESHOLD = 380;
+            const PULL_THRESHOLD = -380;
+            const RING_ACTION_VALID_MS = 280;
+            const RING_ACTION_COOLDOWN_MS = 400;
+            const ORIENT_ACCEL_X_LEFT = -400;
+            const ORIENT_ACCEL_X_RIGHT = 400;
+let calibration = { rightVector: null, centerVector: null, leftVector: null }; // unit vectors [x,y,z] from accel
+        let calibStep = 0;
+        let orientationUseStick = true;
+        const STICK_CENTER = 2048;
+        const STICK_LEFT_MAX = 1400;
+        const STICK_RIGHT_MIN = 2700;
+        const ACCEL_SMOOTH_LEN = 35;
+        const accelXSamples = [];
+        const accelYSamples = [];
+        const accelZSamples = [];
+        let lastOrientation = 0;
+        let stealthCalibSamples = [];
+        let stealthCalibEndTime = null;
+        let stealthCalibLastCollect = 0;
+        const STEALTH_CALIB_DURATION_MS = 15000;
+        const STEALTH_CALIB_INTERVAL_MS = 80;
+        let cubes = [];
+            let score = 0;
+            let combo = 0;
+            let lastRingAction = null;
+            let lastRingActionTime = 0;
+            let lastPushTrigger = 0;
+            let lastPullTrigger = 0;
+            const SPAWN_INTERVAL_MS = 480;
+            let spawnAccum = 0;
+
+            // —— Sound (Web Audio API, no external files) ——
+            let audioCtx = null;
+            function getAudioContext() {
+                if (audioCtx) return audioCtx;
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                return audioCtx;
+            }
+            function playHit() {
+                try {
+                    const ctx = getAudioContext();
+                    const now = ctx.currentTime;
+                    const osc1 = ctx.createOscillator();
+                    const osc2 = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc1.type = "sine";
+                    osc2.type = "sine";
+                    osc1.frequency.setValueAtTime(520, now);
+                    osc1.frequency.exponentialRampToValueAtTime(880, now + 0.06);
+                    osc2.frequency.setValueAtTime(780, now);
+                    osc2.frequency.exponentialRampToValueAtTime(1200, now + 0.06);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                    osc1.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc1.start(now);
+                    osc2.start(now);
+                    osc1.stop(now + 0.12);
+                    osc2.stop(now + 0.12);
+                } catch (_) { }
+            }
+            function playMiss() {
+                try {
+                    const ctx = getAudioContext();
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = "sine";
+                    osc.frequency.setValueAtTime(120, now);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } catch (_) { }
+            }
+            function playCombo(comboCount) {
+                try {
+                    const ctx = getAudioContext();
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = "sine";
+                    osc.frequency.setValueAtTime(400 + comboCount * 80, now);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } catch (_) { }
+            }
+
+            // —— Lights ——
+            const amb = new THREE.AmbientLight(0x404060);
+            scene.add(amb);
+            const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+            dir.position.set(2, 5, 5);
+            scene.add(dir);
+
+            // —— Lane rails (visual guides) ——
+            const railMat = new THREE.MeshBasicMaterial({ color: 0x1a2a3a, transparent: true, opacity: 0.6 });
+            LANES.forEach((x) => {
+                const rail = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 50), railMat);
+                rail.position.set(x, 0, -20);
+                scene.add(rail);
+            });
+
+            // —— Saber (visual line) ——
+            const saberGeom = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(0, 0, -2)
+            ]);
+            const saberLine = new THREE.Line(saberGeom, new THREE.LineBasicMaterial({ color: 0x00aaff, linewidth: 2 }));
+            saberLine.visible = false;
+            scene.add(saberLine);
+
+            const CUBE_TYPES = { PUSH: "push", PULL: "pull" };
+            function createCube(x, type) {
+                const isPush = type === CUBE_TYPES.PUSH;
+                const g = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+                const m = new THREE.MeshPhongMaterial({
+                    color: isPush ? new THREE.Color(0xe04040) : new THREE.Color(0x4080e0),
+                    emissive: isPush ? new THREE.Color(0x330808) : new THREE.Color(0x081833)
+                });
+                const mesh = new THREE.Mesh(g, m);
+                mesh.position.set(x, 0, SPAWN_Z);
+                mesh.userData = { alive: true, type };
+                scene.add(mesh);
+                return mesh;
+            }
+
+            function slashMagnitude() {
+                const s = window.JoyRing?.state;
+                if (!s?.connected || !s?.imu) return 0;
+                const g = s.imu.gyro;
+                const a = s.imu.accel;
+                const gyroMag = Math.sqrt(g.x * g.x + g.y * g.y + g.z * g.z);
+                const accelMag = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+                return Math.max(gyroMag, accelMag * 0.8);
+            }
+
+            // —— Ring action (push/pull) for red/blue cubes ——
+            function updateRingAction() {
+                if (gameState !== GAME_STATES.PLAYING) return;
+                const s = window.JoyRing?.state;
+                if (!s?.connected || !s?.ring) return;
+                const delta = s.ring.delta ?? 0;
+                const now = performance.now();
+                if (delta > PUSH_THRESHOLD && (now - lastPushTrigger) > RING_ACTION_COOLDOWN_MS) {
+                    lastRingAction = CUBE_TYPES.PUSH;
+                    lastRingActionTime = now;
+                    lastPushTrigger = now;
+                } else if (delta < PULL_THRESHOLD && (now - lastPullTrigger) > RING_ACTION_COOLDOWN_MS) {
+                    lastRingAction = CUBE_TYPES.PULL;
+                    lastRingActionTime = now;
+                    lastPullTrigger = now;
+                }
+            }
+
+            document.addEventListener("keydown", (e) => {
+                if (gameState !== GAME_STATES.PLAYING) return;
+                const now = performance.now();
+                if (e.code === "KeyD" || e.code === "ArrowRight") {
+                    lastRingAction = CUBE_TYPES.PUSH;
+                    lastRingActionTime = now;
+                    lastPushTrigger = now;
+                } else if (e.code === "KeyA" || e.code === "ArrowLeft") {
+                    lastRingAction = CUBE_TYPES.PULL;
+                    lastRingActionTime = now;
+                    lastPullTrigger = now;
+                }
+            });
+
+            window.addEventListener("joyring:update", () => {
+                updateRingAction();
+                const s = window.JoyRing?.state;
+                if (s?.imu?.accel != null) {
+                    accelXSamples.push(s.imu.accel.x);
+                    if (accelXSamples.length > ACCEL_SMOOTH_LEN) accelXSamples.shift();
+                    accelYSamples.push(s.imu.accel.y);
+                    if (accelYSamples.length > ACCEL_SMOOTH_LEN) accelYSamples.shift();
+                    accelZSamples.push(s.imu.accel.z);
+                    if (accelZSamples.length > ACCEL_SMOOTH_LEN) accelZSamples.shift();
+                }
+            });
+
+            function getSmoothedAccelX() {
+                if (accelXSamples.length === 0) return 0;
+                let sum = 0;
+                for (let i = 0; i < accelXSamples.length; i++) sum += accelXSamples[i];
+                return sum / accelXSamples.length;
+            }
+            function getSmoothedAccelY() {
+                if (accelYSamples.length === 0) return 0;
+                let sum = 0;
+                for (let i = 0; i < accelYSamples.length; i++) sum += accelYSamples[i];
+                return sum / accelYSamples.length;
+            }
+            function getSmoothedAccelZ() {
+                if (accelZSamples.length === 0) return 2048;
+                let sum = 0;
+                for (let i = 0; i < accelZSamples.length; i++) sum += accelZSamples[i];
+                return sum / accelZSamples.length;
+            }
+            function getCurrentIMUVector() {
+                const x = getSmoothedAccelX();
+                const y = getSmoothedAccelY();
+                const z = getSmoothedAccelZ();
+                const len = Math.sqrt(x * x + y * y + z * z) || 1;
+                return [x / len, y / len, z / len];
+            }
+            function dot(a, b) {
+                return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+            }
+            function normalizeVector(v) {
+                const len = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) || 1;
+                return [v[0] / len, v[1] / len, v[2] / len];
+            }
+            function getCalibVectorFromSamples() {
+                if (accelXSamples.length < 5 || accelYSamples.length < 5 || accelZSamples.length < 5) return null;
+                const x = getSmoothedAccelX();
+                const y = getSmoothedAccelY();
+                const z = getSmoothedAccelZ();
+                return normalizeVector([x, y, z]);
+            }
+
+            function updateRingUI() {
+                const s = window.JoyRing?.state;
+                if (!s?.connected || !s?.ring) {
+                    ringVal.textContent = "—";
+                    ringBarFill.style.width = "50%";
+                    return;
+                }
+                const delta = s.ring.delta ?? 0;
+                ringVal.textContent = String(delta);
+                const pct = 0.5 + Math.max(-0.5, Math.min(0.5, delta / RING_DELTA_RANGE));
+                ringBarFill.style.width = (pct * 100).toFixed(0) + "%";
+            }
+
+            function getOrientation() {
+                const s = window.JoyRing?.state;
+                if (!s?.connected) return 0;
+                if (orientationUseStick && s.sticks?.right != null) {
+                    const sx = s.sticks.right.x ?? STICK_CENTER;
+                    if (sx < STICK_LEFT_MAX) return -1;
+                    if (sx > STICK_RIGHT_MIN) return 1;
+                    return 0;
+                }
+                if (!s?.imu) return 0;
+                const rv = calibration.rightVector;
+                const cv = calibration.centerVector;
+                const lv = calibration.leftVector;
+                if (rv && cv && lv) {
+                    const current = getCurrentIMUVector();
+                    const simRight = dot(current, rv);
+                    const simCenter = dot(current, cv);
+                    const simLeft = dot(current, lv);
+                    if (simRight >= simCenter && simRight >= simLeft) return 1;
+                    if (simLeft >= simCenter && simLeft >= simRight) return -1;
+                    return 0;
+                }
+                const ax = getSmoothedAccelX();
+                if (ax < ORIENT_ACCEL_X_LEFT) return -1;
+                if (ax > ORIENT_ACCEL_X_RIGHT) return 1;
+                return 0;
+            }
+
+            function updateOrientationUI() {
+                const o = getOrientation();
+                document.getElementById("orientL").classList.toggle("active", o === -1);
+                document.getElementById("orientC").classList.toggle("active", o === 0);
+                document.getElementById("orientR").classList.toggle("active", o === 1);
+            }
+
+            function updateCalibUI() {
+                const el = document.getElementById("calibScreen");
+                if (!el || !el.classList.contains("visible")) return;
+                const s = window.JoyRing?.state;
+                const valEl = document.getElementById("calibCurrentVal");
+                if (!s?.connected || !s?.imu) {
+                    valEl.textContent = "— Connect controller first.";
+                    return;
+                }
+                const v = getCurrentIMUVector();
+                valEl.textContent = "Vector [x,y,z]: " + v.map(n => n.toFixed(2)).join(", ") + " (cos similarity → L/C/R)";
+            }
+
+            function updateSaberVisual() {
+                const s = window.JoyRing?.state;
+                if (!s?.connected || !s?.imu) {
+                    saberLine.visible = false;
+                    return;
+                }
+                saberLine.visible = gameState === GAME_STATES.PLAYING;
+                const orient = getOrientation();
+                const saberX = orient * 1.4;
+                saberLine.position.set(saberX, 0, 0);
+                const a = s.imu.accel;
+                const len = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z) || 1;
+                const nx = -a.x / len, ny = -a.y / len, nz = -a.z / len;
+                const end = new THREE.Vector3(nx * 2, ny * 2, nz * 2);
+                saberGeom.attributes.position.setXYZ(1, end.x, end.y, end.z);
+                saberGeom.attributes.position.needsUpdate = true;
+            }
+
+            function hitTest() {
+                const now = performance.now();
+                if (!lastRingAction || (now - lastRingActionTime) > RING_ACTION_VALID_MS) return;
+                const orient = getOrientation();
+                const saberX = orient * 1.4;
+                const LANE_TOLERANCE = 0.9;
+                for (let i = cubes.length - 1; i >= 0; i--) {
+                    const c = cubes[i];
+                    if (!c.userData.alive) continue;
+                    const z = c.position.z;
+                    const inLane = Math.abs(c.position.x - saberX) < LANE_TOLERANCE;
+                    if (z >= HIT_Z_MIN && z <= HIT_Z_MAX && c.userData.type === lastRingAction && inLane) {
+                        c.userData.alive = false;
+                        lastRingAction = null;
+                        combo += 1;
+                        if (combo === 5 || combo === 10) playCombo(combo);
+                        const mult = combo >= 10 ? 2 : combo >= 5 ? 1.5 : 1;
+                        const pts = Math.round(10 * mult);
+                        score += pts;
+                        hitsThisGame += 1;
+                        if (hitsThisGame > 0 && hitsThisGame % SPEED_RAMP_EVERY_HITS === 0 && currentSpeed < SPEED_MAX)
+                            currentSpeed = Math.min(SPEED_MAX, currentSpeed + 1);
+                        comboEl.textContent = combo > 1 ? combo + " combo" : "";
+                        scoreEl.textContent = String(score);
+                        playHit();
+                        explodeCube(c);
+                        cubes.splice(i, 1);
+                        return;
+                    }
+                }
+            }
+
+            function explodeCube(mesh) {
+                const dur = 220;
+                const start = performance.now();
+                const isRed = mesh.userData.type === CUBE_TYPES.PUSH;
+                const flashColor = isRed ? 0xff6060 : 0x60a0ff;
+                function tick() {
+                    const t = (performance.now() - start) / dur;
+                    if (t >= 1) {
+                        scene.remove(mesh);
+                        mesh.geometry.dispose();
+                        mesh.material.dispose();
+                        return;
+                    }
+                    const ease = 1 - (1 - t) * (1 - t);
+                    mesh.scale.setScalar(1 + ease * 0.4 * (1 - t));
+                    mesh.rotation.y += 0.15;
+                    mesh.rotation.x += 0.08;
+                    mesh.material.emissive.setHex(flashColor);
+                    if (mesh.material.emissiveIntensity !== undefined)
+                        mesh.material.emissiveIntensity = 0.3 + 0.7 * (1 - t);
+                    requestAnimationFrame(tick);
+                }
+                if (mesh.material.emissiveIntensity !== undefined) mesh.material.emissiveIntensity = 0.3;
+                requestAnimationFrame(tick);
+            }
+
+            function updateCubes(delta) {
+                if (gameState !== GAME_STATES.PLAYING) return;
+                const step = currentSpeed * delta;
+                for (let i = cubes.length - 1; i >= 0; i--) {
+                    const c = cubes[i];
+                    c.position.z += step;
+                    if (c.userData.alive && c.position.z > HIT_Z_MAX) {
+                        c.userData.alive = false;
+                        playMiss();
+                        lives--;
+                        updateLivesUI();
+                        combo = 0;
+                        comboEl.textContent = "";
+                        scene.remove(c);
+                        c.geometry.dispose();
+                        c.material.dispose();
+                        cubes.splice(i, 1);
+                        if (lives <= 0) {
+                            gameState = GAME_STATES.GAMEOVER;
+                            const best = Math.max(score, parseInt(localStorage.getItem("cubeSaberBest") || "0", 10));
+                            localStorage.setItem("cubeSaberBest", String(best));
+                            document.getElementById("finalScore").textContent = score;
+                            document.getElementById("bestScore").textContent = best;
+                            document.getElementById("gameOverOverlay").classList.add("visible");
+                        }
+                    } else if (c.position.z > 14) {
+                        scene.remove(c);
+                        c.geometry.dispose();
+                        c.material.dispose();
+                        cubes.splice(i, 1);
+                    }
+                }
+                spawnAccum += delta * 1000;
+                while (spawnAccum >= SPAWN_INTERVAL_MS) {
+                    spawnAccum -= SPAWN_INTERVAL_MS;
+                    const x = LANES[Math.floor(Math.random() * LANES.length)];
+                    const type = Math.random() < 0.5 ? CUBE_TYPES.PUSH : CUBE_TYPES.PULL;
+                    cubes.push(createCube(x, type));
+                }
+            }
+            function updateLivesUI() {
+                for (let i = 1; i <= LIVES_MAX; i++) {
+                    const el = document.getElementById("heart" + i);
+                    el.classList.toggle("lost", i > lives);
+                }
+            }
+            function updateStealthCalib(now) {
+                const hintEl = document.getElementById("stealthCalibHint");
+                if (stealthCalibEndTime == null) {
+                    hintEl.classList.remove("visible");
+                    hintEl.textContent = "";
+                    return;
+                }
+                if (gameState !== GAME_STATES.PLAYING) return;
+                if (now - stealthCalibLastCollect >= STEALTH_CALIB_INTERVAL_MS && window.JoyRing?.state?.imu?.accel) {
+                    stealthCalibSamples.push(getCurrentIMUVector().slice());
+                    stealthCalibLastCollect = now;
+                }
+                const left = Math.max(0, (stealthCalibEndTime - now) / 1000);
+                if (left > 0) {
+                    hintEl.classList.add("visible");
+                    hintEl.textContent = "Vector learning: " + Math.ceil(left) + "s (use stick for now)";
+                } else {
+                    const n = stealthCalibSamples.length;
+                    if (n >= 15) {
+                        stealthCalibSamples.sort((a, b) => a[0] - b[0]);
+                        calibration.leftVector = stealthCalibSamples[Math.floor(n * 0.1)].slice();
+                        calibration.centerVector = stealthCalibSamples[Math.floor(n * 0.5)].slice();
+                        calibration.rightVector = stealthCalibSamples[Math.floor(n * 0.9)].slice();
+                        orientationUseStick = false;
+                    }
+                    stealthCalibEndTime = null;
+                    stealthCalibSamples = [];
+                    hintEl.textContent = "Vectors calibrated. L/C/R from cosine similarity.";
+                    hintEl.classList.add("visible");
+                    setTimeout(() => { hintEl.classList.remove("visible"); hintEl.textContent = ""; }, 3000);
+                }
+            }
+
+            let lastTime = 0;
+            function animate(t) {
+                requestAnimationFrame(animate);
+                const delta = (t - lastTime) / 1000;
+                lastTime = t;
+                updateRingAction();
+                hitTest();
+                updateCubes(delta);
+                updateStealthCalib(t);
+                updateSaberVisual();
+                updateOrientationUI();
+                updateRingUI();
+                updateCalibUI();
+                renderer.render(scene, camera);
+            }
+            requestAnimationFrame(animate);
+
+            // —— Menu & connect ——
+            btnConnect.addEventListener("click", async () => {
+                try {
+menuStatus.textContent = "Connecting… Select your controller in the dialog.";
+                await window.JoyRing.connect();
+                btnStart.disabled = false;
+                menuStatus.textContent = "Connected: " + (window.JoyRing.state.productName || "Controller") + " — Click Start Game.";
+                } catch (e) {
+                    menuStatus.textContent = "Failed: " + (e.message || String(e)) + " — Use Chrome/Edge with WebHID.";
+                }
+            });
+
+            const calibScreen = document.getElementById("calibScreen");
+            const calibStepDesc = document.getElementById("calibStepDesc");
+            const calibProgress = document.getElementById("calibProgress");
+            const calibNext = document.getElementById("calibNext");
+
+            btnStart.addEventListener("click", () => {
+                menu.classList.add("hidden");
+                calibStep = 1;
+                calibration = { rightVector: null, centerVector: null, leftVector: null };
+                calibStepDesc.textContent = "1. Hold the ring to the RIGHT. We record an IMU vector (accel). Then click Next.";
+                calibProgress.textContent = "Step 1 of 3: Right";
+                calibNext.textContent = "Next";
+                calibScreen.classList.add("visible");
+            });
+
+            function runCountdownThenPlay() {
+                gameState = GAME_STATES.COUNTDOWN;
+                const overlay = document.getElementById("countdownOverlay");
+                const numEl = document.getElementById("countdownNum");
+                overlay.classList.add("visible");
+                const steps = [3, 2, 1, "Go!"];
+                let step = 0;
+                function next() {
+                    if (step >= steps.length) {
+                        overlay.classList.remove("visible");
+                        gameState = GAME_STATES.PLAYING;
+                        return;
+                    }
+                    numEl.textContent = steps[step];
+                    step++;
+                    setTimeout(next, 1000);
+                }
+                next();
+            }
+            function resetGame() {
+                lives = LIVES_MAX;
+                lastOrientation = 0;
+                stealthCalibEndTime = null;
+                stealthCalibSamples = [];
+                updateLivesUI();
+                score = 0;
+                combo = 0;
+                hitsThisGame = 0;
+                currentSpeed = SPEED_BASE;
+                scoreEl.textContent = "0";
+                comboEl.textContent = "";
+                for (let i = cubes.length - 1; i >= 0; i--) {
+                    const c = cubes[i];
+                    scene.remove(c);
+                    c.geometry.dispose();
+                    c.material.dispose();
+                }
+                cubes = [];
+                spawnAccum = 0;
+            }
+            function startGameAfterCalib() {
+                calibScreen.classList.remove("visible");
+                getAudioContext().resume().catch(() => { });
+                resetGame();
+                runCountdownThenPlay();
+            }
+
+            calibNext.addEventListener("click", () => {
+                let vec = getCalibVectorFromSamples();
+                if (!vec && window.JoyRing?.state?.imu?.accel) {
+                    const a = window.JoyRing.state.imu.accel;
+                    vec = normalizeVector([a.x, a.y, a.z || 1]);
+                }
+                if (!vec) return;
+                if (calibStep === 1) {
+                    calibration.rightVector = vec.slice();
+                    calibStep = 2;
+                    calibStepDesc.textContent = "2. Hold the ring in the CENTER. Then click Next.";
+                    calibProgress.textContent = "Step 2 of 3: Center";
+                } else if (calibStep === 2) {
+                    calibration.centerVector = vec.slice();
+                    calibStep = 3;
+                    calibStepDesc.textContent = "3. Hold the ring to the LEFT. Then click Next.";
+                    calibProgress.textContent = "Step 3 of 3: Left";
+                } else if (calibStep === 3) {
+                    calibration.leftVector = vec.slice();
+                    orientationUseStick = false;
+                    startGameAfterCalib();
+                }
+            });
+
+            document.getElementById("calibUseStick").addEventListener("click", () => {
+                orientationUseStick = true;
+                stealthCalibEndTime = null;
+                startGameAfterCalib();
+            });
+            document.getElementById("calibStealth").addEventListener("click", () => {
+                orientationUseStick = true;
+                stealthCalibSamples = [];
+                stealthCalibEndTime = performance.now() + STEALTH_CALIB_DURATION_MS;
+                stealthCalibLastCollect = 0;
+                startGameAfterCalib();
+            });
+
+            document.getElementById("btnRestart").addEventListener("click", () => {
+                document.getElementById("gameOverOverlay").classList.remove("visible");
+                resetGame();
+                runCountdownThenPlay();
+            });
+
+            document.getElementById("bestScore").textContent = localStorage.getItem("cubeSaberBest") || "0";
+
+            if (window.JoyRing?.state?.connected) {
+                btnStart.disabled = false;
+                menuStatus.textContent = "Connected. Click Start Game.";
+            }
+        })();
+    </script>
+</body>
+
+</html>
